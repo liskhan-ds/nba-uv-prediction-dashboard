@@ -1,20 +1,6 @@
 """
 ================================================================================
-[파일명: dashboard.py] - NBA AI Predictor
-================================================================================
-[파일명: dashboard.py] - 그래프 기능 추가 버전
-================================================================================
-[파일명: dashboard.py] - 그래프 디자인 업그레이드 (Dual Timezone & Last 7 Days)
-================================================================================
-[파일명: dashboard.py] - 그래프 최종 완성형 (Bar Chart & Conditional Colors)
-================================================================================
-[파일명: dashboard.py] - UI/UX Final Upgrade (Logo, Mobile, Actual Result)
-================================================================================
-[파일명: dashboard.py] - UI/UX Final Upgrade (Fix: Syntax Error)
-================================================================================
-[파일명: dashboard.py] - Date Grouping Fix (날짜별 완벽 분리)
-================================================================================
-[파일명: dashboard.py] - Status Split Fix (같은 날짜라도 상태별로 강제 분리)
+[파일명: dashboard.py] - 무조건 되는 최종 버전
 ================================================================================
 """
 import streamlit as st
@@ -22,12 +8,24 @@ import sqlite3
 import pandas as pd
 import os
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 1. 페이지 설정
 st.set_page_config(page_title="NBA AI Predictor", page_icon="🏀", layout="wide")
 
-# --- [로고 딕셔너리] ---
+# 2. DB 경로 및 로드 함수
+def get_db_path():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, "nba_data.db")
+
+def load_data():
+    conn = sqlite3.connect(get_db_path())
+    query = "SELECT * FROM predictions"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+# 3. 로고 데이터
 TEAM_LOGOS = {
     'ATL': 'https://upload.wikimedia.org/wikipedia/en/2/24/Atlanta_Hawks_logo.svg',
     'BOS': 'https://upload.wikimedia.org/wikipedia/en/8/8f/Boston_Celtics.svg',
@@ -67,19 +65,12 @@ def get_logo_html(team_abbr, width=25):
         return f'<img src="{url}" width="{width}" style="vertical-align:middle; margin-right:5px;">'
     return ""
 
-def load_data():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(base_dir, "nba_data.db")
-    conn = sqlite3.connect(db_path)
-    query = "SELECT * FROM predictions"
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df
-
+# 4. 메인 화면
 st.title("🏀 NBA - UV Predictor")
 st.markdown("### Allakers x Google Gemini 승부예측 시스템")
 st.divider()
 
+# 데이터 로드 (여기가 문제였던 부분! 완벽하게 고침)
 try:
     df = load_data()
 except Exception as e:
@@ -87,29 +78,30 @@ except Exception as e:
     st.stop()
 
 if df.empty:
-    st.warning("데이터가 없습니다.")
+    st.warning("데이터가 없습니다. run_nba.py를 실행해주세요!")
 else:
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date', ascending=False)
 
-    finished = df.dropna(subset=['is_correct'])
-    correct = finished[finished['is_correct'] == 1]
+    finished_all = df.dropna(subset=['is_correct'])
+    correct_all = finished_all[finished_all['is_correct'] == 1]
     
-    acc = 0.0
-    if len(finished) > 0:
-        acc = (len(correct) / len(finished)) * 100
+    acc_all = 0.0
+    if len(finished_all) > 0:
+        acc_all = (len(correct_all) / len(finished_all)) * 100
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("총 예측", f"{len(df)} Game")
-    c2.metric("채점 완료", f"{len(finished)} Game")
-    c3.metric("누적 적중률", f"{acc:.1f}%")
+    c1.metric("총 예측 DB", f"{len(df)} Game")
+    c2.metric("채점 완료", f"{len(finished_all)} Game")
+    c3.metric("전체 누적 적중률", f"{acc_all:.1f}%")
     
     st.divider()
 
-    if len(finished) > 0:
-        st.subheader("📈 최근 적중률 변화 (Last 7 Days)")
+    # --- 그래프 ---
+    if len(finished_all) > 0:
+        st.subheader("📈 일별 적중률 변화 (Game Date 기준)")
         
-        daily_stats = finished.groupby('date').agg(
+        daily_stats = finished_all.groupby('date').agg(
             accuracy=('is_correct', 'mean'),
             correct_count=('is_correct', 'sum'),
             total_count=('is_correct', 'count')
@@ -117,21 +109,15 @@ else:
         
         daily_stats['accuracy'] = daily_stats['accuracy'] * 100
         daily_df = daily_stats.sort_values('date').tail(7).copy()
+        daily_df['date_label'] = daily_df['date'].dt.strftime("%b %d")
         
-        def make_dual_label(dt):
-            return dt.strftime("%b %d")
-
         def get_color(acc):
             if acc >= 70: return '#FF4B4B'
             elif acc >= 50: return '#FFA15A'
             else: return '#1E90FF'
 
-        def make_text(row):
-            return f"{row['accuracy']:.1f}%({int(row['correct_count'])}/{int(row['total_count'])})"
-
-        daily_df['date_label'] = daily_df['date'].apply(make_dual_label)
         daily_df['color'] = daily_df['accuracy'].apply(get_color)
-        daily_df['display_text'] = daily_df.apply(make_text, axis=1)
+        daily_df['display_text'] = daily_df.apply(lambda r: f"{r['accuracy']:.1f}%({int(r['correct_count'])}/{int(r['total_count'])})", axis=1)
 
         fig = go.Figure()
         fig.add_trace(go.Bar(
@@ -142,81 +128,49 @@ else:
             textposition='outside',
             hoverinfo='none'
         ))
-
-        fig.update_layout(
-            title='',
-            template="plotly_dark",
-            yaxis_range=[0, 115],
-            bargap=0.3,
-            margin=dict(l=20, r=20, t=30, b=20)
-        )
+        fig.update_layout(title='', template="plotly_dark", yaxis_range=[0, 115], bargap=0.3, margin=dict(l=20, r=20, t=30, b=20))
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
-    tab1, tab2 = st.tabs(["📅 경기 예측 리스트", "📊 원본 데이터"])
+    
+    # --- 리스트 ---
+    tab1, tab2 = st.tabs(["📅 경기 날짜별 보기", "📊 원본 데이터"])
     
     with tab1:
-        unique_dates = df['date'].dt.date.unique()
-        
+        unique_dates = sorted(df['date'].dt.date.unique(), reverse=True)
         for game_date in unique_dates:
-            # 1. 일단 날짜 타이틀 출력
-            st.markdown(f"## 📅 {game_date}")
-            
             day_df = df[df['date'].dt.date == game_date]
+            day_finished = day_df.dropna(subset=['is_correct'])
+            day_correct = day_finished[day_finished['is_correct'] == 1]
+            day_pending = day_df[day_df['is_correct'].isna()]
             
-            # 2. 해당 날짜 안에서 '대기 중(Pending)'과 '종료(Finished)'를 분리
-            pending_df = day_df[day_df['is_correct'].isna()]
-            finished_df = day_df[day_df['is_correct'].notna()]
-            
-            # --- [Part A] 대기 중인 경기 (파란색) ---
-            if not pending_df.empty:
-                st.caption("⏳ 진행 대기 / 경기 중")
-                for _, row in pending_df.iterrows():
-                    c_match, c_result = st.columns([1.5, 1])
-                    with c_match:
-                        v_logo = get_logo_html(row['visit_team'])
-                        h_logo = get_logo_html(row['home_team'])
-                        st.markdown(f"""
-                            <div style="display:flex; align-items:center; height:100%;">
-                                <span style="font-size:16px; font-weight:bold;">
-                                    {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
-                                </span>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    with c_result:
-                         st.info(f"🤖 Pick: {row['predicted_winner']}")
-                    st.markdown("---")
+            stat_text = "-"
+            if len(day_finished) > 0:
+                day_acc = (len(day_correct) / len(day_finished)) * 100
+                stat_text = f"🔥 적중률: {day_acc:.1f}% ({len(day_correct)}/{len(day_finished)})"
+            elif len(day_pending) > 0:
+                 stat_text = "⏳ 경기 준비 중"
 
-            # --- [Part B] 종료된 경기 (초록/빨강) ---
-            if not finished_df.empty:
-                # 대기 경기가 위에 있었다면 구분감 주기
-                if not pending_df.empty:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                
-                st.caption("✅ 경기 종료 / 채점 완료")
-                for _, row in finished_df.iterrows():
-                    c_match, c_result = st.columns([1.5, 1])
-                    with c_match:
-                        v_logo = get_logo_html(row['visit_team'])
-                        h_logo = get_logo_html(row['home_team'])
-                        st.markdown(f"""
-                            <div style="display:flex; align-items:center; height:100%;">
-                                <span style="font-size:16px; font-weight:bold;">
-                                    {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
-                                </span>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    with c_result:
-                        pick = row['predicted_winner']
-                        actual = row['actual_winner']
-                        if row['is_correct'] == 1:
-                            st.success(f"✅ Pick: {pick} / 실제: {actual}")
-                        else:
-                            st.error(f"❌ Pick: {pick} / 실제: {actual}")
-                    st.markdown("---")
+            st.markdown(f"### 📅 {game_date}  |  {stat_text}")
             
-            # 날짜별 덩어리 구분 (여백)
-            st.markdown("<br><br>", unsafe_allow_html=True)
+            for _, row in day_df.iterrows():
+                c_match, c_result = st.columns([1.5, 1])
+                with c_match:
+                    v_logo = get_logo_html(row['visit_team'])
+                    h_logo = get_logo_html(row['home_team'])
+                    st.markdown(f"""<div style="display:flex; align-items:center; height:100%;">
+                            <span style="font-size:16px; font-weight:bold;">
+                                {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
+                            </span></div>""", unsafe_allow_html=True)
+                with c_result:
+                    if pd.isna(row['is_correct']):
+                        st.info(f"🤖 Pick: {row['predicted_winner']} (대기)")
+                    elif row['is_correct'] == 1:
+                        st.success(f"✅ Pick: {row['predicted_winner']} / 실제: {row['actual_winner']}")
+                    else:
+                        st.error(f"❌ Pick: {row['predicted_winner']} / 실제: {row['actual_winner']}")
+                st.markdown("---")
+            st.markdown("<br>", unsafe_allow_html=True)
 
     with tab2:
         st.dataframe(df)

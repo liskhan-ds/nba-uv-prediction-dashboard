@@ -1,5 +1,7 @@
 streamlit
 pandas
-plotly
-nba_api
 requests
+beautifulsoup4
+nba_api
+thefuzz
+plotly
