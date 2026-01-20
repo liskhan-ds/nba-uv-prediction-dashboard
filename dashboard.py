@@ -14,6 +14,8 @@
 ================================================================================
 [파일명: dashboard.py] - Date Grouping Fix (날짜별 완벽 분리)
 ================================================================================
+[파일명: dashboard.py] - Status Split Fix (같은 날짜라도 상태별로 강제 분리)
+================================================================================
 """
 import streamlit as st
 import sqlite3
@@ -60,13 +62,11 @@ TEAM_LOGOS = {
 }
 
 def get_logo_html(team_abbr, width=25):
-    """HTML 태그로 로고 이미지 생성"""
     url = TEAM_LOGOS.get(team_abbr, "")
     if url:
         return f'<img src="{url}" width="{width}" style="vertical-align:middle; margin-right:5px;">'
     return ""
 
-# 2. DB 로드 함수
 def load_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(base_dir, "nba_data.db")
@@ -76,7 +76,6 @@ def load_data():
     conn.close()
     return df
 
-# 3. 타이틀 영역
 st.title("🏀 NBA - UV Predictor")
 st.markdown("### Allakers x Google Gemini 승부예측 시스템")
 st.divider()
@@ -90,12 +89,9 @@ except Exception as e:
 if df.empty:
     st.warning("데이터가 없습니다.")
 else:
-    # 날짜 컬럼을 datetime 객체로 확실하게 변환
     df['date'] = pd.to_datetime(df['date'])
-    # 최신 날짜가 위로 오도록 정렬 (내일 -> 오늘 -> 어제)
     df = df.sort_values('date', ascending=False)
 
-    # --- [KPI 섹션] ---
     finished = df.dropna(subset=['is_correct'])
     correct = finished[finished['is_correct'] == 1]
     
@@ -110,7 +106,6 @@ else:
     
     st.divider()
 
-    # --- [그래프 섹션] ---
     if len(finished) > 0:
         st.subheader("📈 최근 적중률 변화 (Last 7 Days)")
         
@@ -124,8 +119,7 @@ else:
         daily_df = daily_stats.sort_values('date').tail(7).copy()
         
         def make_dual_label(dt):
-            kst_str = dt.strftime("%b %d")
-            return f"{kst_str}"
+            return dt.strftime("%b %d")
 
         def get_color(acc):
             if acc >= 70: return '#FF4B4B'
@@ -158,68 +152,71 @@ else:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- [리스트 섹션] (날짜별 그룹핑 강화) ---
     st.divider()
     tab1, tab2 = st.tabs(["📅 경기 예측 리스트", "📊 원본 데이터"])
     
     with tab1:
-        # 고유 날짜 추출 (내림차순: 미래 -> 과거)
         unique_dates = df['date'].dt.date.unique()
         
         for game_date in unique_dates:
-            # 해당 날짜의 데이터만 필터링
+            # 1. 일단 날짜 타이틀 출력
+            st.markdown(f"## 📅 {game_date}")
+            
             day_df = df[df['date'].dt.date == game_date]
             
-            # 헤더에 상태 표시 (예: 내일 날짜면 '대기중'이 많을 것임)
-            # 해당 날짜에 결과가 없는(NaN) 경기가 하나라도 있으면 '진행 중/대기'로 간주
-            is_pending = day_df['is_correct'].isna().any()
+            # 2. 해당 날짜 안에서 '대기 중(Pending)'과 '종료(Finished)'를 분리
+            pending_df = day_df[day_df['is_correct'].isna()]
+            finished_df = day_df[day_df['is_correct'].notna()]
             
-            status_text = ""
-            if is_pending:
-                status_text = "⏳ (경기 대기/진행 중)"
-            else:
-                status_text = "🏁 (경기 종료)"
+            # --- [Part A] 대기 중인 경기 (파란색) ---
+            if not pending_df.empty:
+                st.caption("⏳ 진행 대기 / 경기 중")
+                for _, row in pending_df.iterrows():
+                    c_match, c_result = st.columns([1.5, 1])
+                    with c_match:
+                        v_logo = get_logo_html(row['visit_team'])
+                        h_logo = get_logo_html(row['home_team'])
+                        st.markdown(f"""
+                            <div style="display:flex; align-items:center; height:100%;">
+                                <span style="font-size:16px; font-weight:bold;">
+                                    {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
+                                </span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    with c_result:
+                         st.info(f"🤖 Pick: {row['predicted_winner']}")
+                    st.markdown("---")
 
-            # 날짜 헤더 출력
-            st.markdown(f"### 📅 {game_date} {status_text}")
-            
-            for _, row in day_df.iterrows():
-                # 모바일 최적화 컬럼 분할
-                c_match, c_result = st.columns([1.5, 1])
+            # --- [Part B] 종료된 경기 (초록/빨강) ---
+            if not finished_df.empty:
+                # 대기 경기가 위에 있었다면 구분감 주기
+                if not pending_df.empty:
+                    st.markdown("<br>", unsafe_allow_html=True)
                 
-                with c_match:
-                    v_logo = get_logo_html(row['visit_team'])
-                    h_logo = get_logo_html(row['home_team'])
-                    
-                    st.markdown(
-                        f"""
-                        <div style="display:flex; align-items:center; height:100%;">
-                            <span style="font-size:16px; font-weight:bold;">
-                                {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
-                            </span>
-                        </div>
-                        """, 
-                        unsafe_allow_html=True
-                    )
-
-                with c_result:
-                    pick = row['predicted_winner']
-                    actual = row['actual_winner']
-                    
-                    if pd.isna(row['is_correct']):
-                        # 진행 전 (파란색)
-                        st.info(f"🤖 Pick: {pick}")
-                    elif row['is_correct'] == 1:
-                        # 적중 (초록색)
-                        st.success(f"✅ Pick: {pick} / 실제: {actual}")
-                    else:
-                        # 실패 (빨간색)
-                        st.error(f"❌ Pick: {pick} / 실제: {actual}")
-                
-                st.markdown("---") # 경기 간 구분선
+                st.caption("✅ 경기 종료 / 채점 완료")
+                for _, row in finished_df.iterrows():
+                    c_match, c_result = st.columns([1.5, 1])
+                    with c_match:
+                        v_logo = get_logo_html(row['visit_team'])
+                        h_logo = get_logo_html(row['home_team'])
+                        st.markdown(f"""
+                            <div style="display:flex; align-items:center; height:100%;">
+                                <span style="font-size:16px; font-weight:bold;">
+                                    {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
+                                </span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    with c_result:
+                        pick = row['predicted_winner']
+                        actual = row['actual_winner']
+                        if row['is_correct'] == 1:
+                            st.success(f"✅ Pick: {pick} / 실제: {actual}")
+                        else:
+                            st.error(f"❌ Pick: {pick} / 실제: {actual}")
+                    st.markdown("---")
             
-            # 날짜 간 굵은 구분선 추가 (시각적 분리 강화)
-            st.markdown("<br>", unsafe_allow_html=True)
+            # 날짜별 덩어리 구분 (여백)
+            st.markdown("<br><br>", unsafe_allow_html=True)
 
     with tab2:
         st.dataframe(df)
