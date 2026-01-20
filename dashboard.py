@@ -8,16 +8,59 @@
 ================================================================================
 [파일명: dashboard.py] - 그래프 최종 완성형 (Bar Chart & Conditional Colors)
 ================================================================================
+[파일명: dashboard.py] - UI/UX Final Upgrade (Logo, Mobile, Actual Result)
+================================================================================
 """
 import streamlit as st
 import sqlite3
 import pandas as pd
 import os
-import plotly.graph_objects as go # 막대그래프의 세밀한 제어를 위해 추가
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # 1. 페이지 설정
 st.set_page_config(page_title="NBA AI Predictor", page_icon="🏀", layout="wide")
+
+# --- [추가] NBA 로고 URL 딕셔너리 ---
+TEAM_LOGOS = {
+    'ATL': 'https://upload.wikimedia.org/wikipedia/en/2/24/Atlanta_Hawks_logo.svg',
+    'BOS': 'https://upload.wikimedia.org/wikipedia/en/8/8f/Boston_Celtics.svg',
+    'BKN': 'https://upload.wikimedia.org/wikipedia/commons/4/44/Brooklyn_Nets_newlogo.svg',
+    'CHA': 'https://upload.wikimedia.org/wikipedia/en/c/c4/Charlotte_Hornets_%282014%29.svg',
+    'CHI': 'https://upload.wikimedia.org/wikipedia/en/6/67/Chicago_Bulls_logo.svg',
+    'CLE': 'https://upload.wikimedia.org/wikipedia/en/4/4b/Cleveland_Cavaliers_logo.svg',
+    'DAL': 'https://upload.wikimedia.org/wikipedia/en/9/97/Dallas_Mavericks_logo14.svg',
+    'DEN': 'https://upload.wikimedia.org/wikipedia/en/7/76/Denver_Nuggets.svg',
+    'DET': 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Pistons_logo17.svg',
+    'GSW': 'https://upload.wikimedia.org/wikipedia/en/0/01/Golden_State_Warriors_logo.svg',
+    'HOU': 'https://upload.wikimedia.org/wikipedia/en/2/28/Houston_Rockets.svg',
+    'IND': 'https://upload.wikimedia.org/wikipedia/en/1/1b/Indiana_Pacers.svg',
+    'LAC': 'https://upload.wikimedia.org/wikipedia/en/b/bb/Los_Angeles_Clippers_%282015%29.svg',
+    'LAL': 'https://upload.wikimedia.org/wikipedia/commons/3/3c/Los_Angeles_Lakers_logo.svg',
+    'MEM': 'https://upload.wikimedia.org/wikipedia/en/f/f1/Memphis_Grizzlies.svg',
+    'MIA': 'https://upload.wikimedia.org/wikipedia/en/f/fb/Miami_Heat_logo.svg',
+    'MIL': 'https://upload.wikimedia.org/wikipedia/en/4/4a/Milwaukee_Bucks_logo.svg',
+    'MIN': 'https://upload.wikimedia.org/wikipedia/en/c/c2/Minnesota_Timberwolves_logo.svg',
+    'NOP': 'https://upload.wikimedia.org/wikipedia/en/0/0d/New_Orleans_Pelicans_logo.svg',
+    'NYK': 'https://upload.wikimedia.org/wikipedia/en/2/25/New_York_Knicks_logo.svg',
+    'OKC': 'https://upload.wikimedia.org/wikipedia/en/5/5d/Oklahoma_City_Thunder.svg',
+    'ORL': 'https://upload.wikimedia.org/wikipedia/en/1/10/Orlando_Magic_logo.svg',
+    'PHI': 'https://upload.wikimedia.org/wikipedia/en/0/0e/Philadelphia_76ers_logo.svg',
+    'PHX': 'https://upload.wikimedia.org/wikipedia/en/5/56/Phoenix_Suns_logo.svg',
+    'POR': 'https://upload.wikimedia.org/wikipedia/en/2/21/Portland_Trail_Blazers_logo.svg',
+    'SAC': 'https://upload.wikimedia.org/wikipedia/en/c/c7/SacramentoKings.svg',
+    'SAS': 'https://upload.wikimedia.org/wikipedia/en/a/a2/San_Antonio_Spurs.svg',
+    'TOR': 'https://upload.wikimedia.org/wikipedia/en/3/36/Toronto_Raptors_logo.svg',
+    'UTA': 'https://upload.wikimedia.org/wikipedia/en/0/04/Utah_Jazz_logo_%282016%29.svg',
+    'WAS': 'https://upload.wikimedia.org/wikipedia/en/0/02/Washington_Wizards_logo.svg'
+}
+
+def get_logo_html(team_abbr, width=25):
+    """HTML 태그로 로고 이미지 생성"""
+    url = TEAM_LOGOS.get(team_abbr, "")
+    if url:
+        return f'<img src="{url}" width="{width}" style="vertical-align:middle; margin-right:5px;">'
+    return ""
 
 # 2. DB 로드 함수
 def load_data():
@@ -34,7 +77,6 @@ st.title("🏀 NBA - UV Predictor")
 st.markdown("### Allakers x Google Gemini 승부예측 시스템")
 st.divider()
 
-# 데이터 불러오기
 try:
     df = load_data()
 except Exception as e:
@@ -44,11 +86,10 @@ except Exception as e:
 if df.empty:
     st.warning("데이터가 없습니다.")
 else:
-    # 날짜 데이터 전처리
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date', ascending=True)
 
-    # --- [섹션 1] KPI 지표 ---
+    # --- [KPI 섹션] ---
     finished = df.dropna(subset=['is_correct'])
     correct = finished[finished['is_correct'] == 1]
     
@@ -63,101 +104,6 @@ else:
     
     st.divider()
 
-    # --- [섹션 2] 적중률 그래프 (최종 완성형) ---
+    # --- [그래프 섹션] ---
     if len(finished) > 0:
-        st.subheader("📈 최근 적중률 변화 (Last 7 Days)")
-        
-        # 1. 일별 데이터 집계 (평균값 + 맞춘 개수 + 전체 개수)
-        daily_stats = finished.groupby('date').agg(
-            accuracy=('is_correct', 'mean'),
-            correct_count=('is_correct', 'sum'),
-            total_count=('is_correct', 'count')
-        ).reset_index()
-        
-        daily_stats['accuracy'] = daily_stats['accuracy'] * 100
-        
-        # 2. 최근 7일치만 자르기
-        daily_df = daily_stats.sort_values('date').tail(7).copy()
-        
-        # 3. X축 라벨 만들기 (KST / US 듀얼 표기)
-        def make_dual_label(dt):
-            kst_str = dt.strftime("%b %d, %Y")
-            us_dt = dt - timedelta(days=1)
-            us_str = us_dt.strftime("%b %d, %Y")
-            return f"{kst_str}(KST)<br>{us_str}(US-ET)"
-
-        # 4. 색상 결정 함수 (조건부 서식)
-        def get_color(acc):
-            if acc >= 70: return '#FF4B4B' # 빨강 (Streamlit 기본 레드)
-            elif acc >= 50: return '#FFA15A' # 주황
-            else: return '#1E90FF' # 파랑
-
-        # 5. 표시 텍스트 만들기 (예: 88.89%(8/9))
-        def make_text(row):
-            return f"{row['accuracy']:.2f}%({int(row['correct_count'])}/{int(row['total_count'])})"
-
-        # 데이터프레임에 적용
-        daily_df['date_label'] = daily_df['date'].apply(make_dual_label)
-        daily_df['color'] = daily_df['accuracy'].apply(get_color)
-        daily_df['display_text'] = daily_df.apply(make_text, axis=1)
-
-        # 6. 그래프 그리기 (go.Bar 사용)
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=daily_df['date_label'],
-            y=daily_df['accuracy'],
-            marker_color=daily_df['color'], # 조건부 색상 적용
-            text=daily_df['display_text'],  # 상단 텍스트 적용
-            textposition='outside',         # 막대 바깥에 표시
-            hoverinfo='none'                # 툴팁 제거
-        ))
-
-        # 레이아웃 설정
-        # 레이아웃 설정 (bargap 추가)
-        fig.update_layout(
-            title='일별 적중률 변화 (%)',
-            template="plotly_dark",
-            yaxis_range=[0, 115], 
-            xaxis_title="Date",
-            xaxis=dict(type='category'),
-            bargap=0.8  # <--- 이 줄을 추가하세요! (0.3은 30%만큼 띄우라는 뜻)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # --- [섹션 3] 상세 리스트 (최신순) ---
-    st.divider()
-    tab1, tab2 = st.tabs(["📅 최근 예측 내역", "📊 데이터 원본"])
-    
-    # 화면 표시용은 다시 최신순(내림차순) 정렬
-    df_display = df.sort_values('date', ascending=False)
-    
-    with tab1:
-        dates = df_display['date'].dt.strftime('%Y-%m-%d').unique()
-        for date in dates:
-            st.caption(f"📅 {date}")
-            day_df = df_display[df_display['date'].dt.strftime('%Y-%m-%d') == date]
-            
-            for _, row in day_df.iterrows():
-                with st.container():
-                    c1, c2, c3, c4, c5 = st.columns([1, 2, 1, 2, 1])
-                    icon = "⏳"
-                    if pd.notna(row['is_correct']):
-                        icon = "✅ 적중" if row['is_correct'] == 1 else "❌ 실패"
-                    
-                    c1.text(icon)
-                    c2.write(f"**{row['visit_team']}**")
-                    c3.write("vs")
-                    c4.write(f"**{row['home_team']}**")
-                    
-                    pick = row['predicted_winner']
-                    gap = row['predicted_gap']
-                    
-                    if pd.notna(row['is_correct']) and row['is_correct'] == 0:
-                        c5.error(f"Pick: {pick}\n(Gap: {gap:.2f})")
-                    else:
-                        c5.info(f"Pick: {pick}\n(Gap: {gap:.2f})")
-                        
-                st.markdown("---")
-
-    with tab2:
-        st.dataframe(df_display)
+        st.subheader("📈 최근 적중률 변화 (Last
