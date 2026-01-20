@@ -1,27 +1,22 @@
 """
 ================================================================================
-[파일명: config.py] - 환경 설정 관리자
-================================================================================
-[역할]
-- TEST 모드와 REAL 모드를 스위치 하나로 전환합니다.
-- 슬랙 웹훅 URL을 한곳에서 관리합니다.
+[파일명: config.py] - 슬랙 설정 파일
 ================================================================================
 """
 
-# 👇 [여기만 바꾸면 됩니다!]
-# "TEST" -> 테스트용 채널로 발송
-# "REAL" -> 리얼 배포용 채널로 발송
-MODE = "TEST" 
+# 1. 봇 토큰 (xoxb- 로 시작하는 값)
+# -> https://api.slack.com/apps > OAuth & Permissions > Bot User OAuth Token
+SLACK_BOT_TOKEN = "xoxb-10321508716741-10328534004116-feJ69S4fJzDRjYbrD9MwA7oa" 
 
-# 🔗 슬랙 웹훅 주소 모음
-WEBHOOK_URLS = {
-    "REAL": "https://hooks.slack.com/services/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", # 리얼 배포용
-    "TEST": "https://hooks.slack.com/services/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"  # 테스트용
-}
+# 2. 테스트용 채널 ID (C 로 시작하는 값)
+# -> 슬랙 채널 우클릭 > 세부정보 보기 > 맨 아래 Channel ID 복사
+SLACK_TEST_CHANNEL_ID = "C0A9UFCE5PE" 
 
-def get_slack_url():
-    """ 현재 모드에 맞는 URL을 꺼내줍니다. """
-    return WEBHOOK_URLS[MODE]
+# 3. 실제 배포용 채널 ID (리얼 모드일 때 발송될 곳)
+# -> 모르면 위 테스트 채널 ID와 똑같이 적으셔도 됩니다.
+SLACK_REAL_CHANNEL_ID = "C0A9GSZQD1U" 
 
-def get_mode_name():
-    return MODE
+# 4. 현재 모드 설정
+# "TEST" -> 테스트 채널로만 발송 (개발 중일 때 추천)
+# "REAL" -> 실제 채널로 발송 (사람들에게 보여줄 때)
+MODE = "REAL"
