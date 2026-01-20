@@ -10,6 +10,8 @@
 ================================================================================
 [파일명: dashboard.py] - UI/UX Final Upgrade (Logo, Mobile, Actual Result)
 ================================================================================
+[파일명: dashboard.py] - UI/UX Final Upgrade (Fix: Syntax Error)
+================================================================================
 """
 import streamlit as st
 import sqlite3
@@ -106,4 +108,97 @@ else:
 
     # --- [그래프 섹션] ---
     if len(finished) > 0:
-        st.subheader("📈 최근 적중률 변화 (Last
+        st.subheader("📈 최근 적중률 변화 (Last 7 Days)")
+        
+        daily_stats = finished.groupby('date').agg(
+            accuracy=('is_correct', 'mean'),
+            correct_count=('is_correct', 'sum'),
+            total_count=('is_correct', 'count')
+        ).reset_index()
+        
+        daily_stats['accuracy'] = daily_stats['accuracy'] * 100
+        daily_df = daily_stats.sort_values('date').tail(7).copy()
+        
+        def make_dual_label(dt):
+            kst_str = dt.strftime("%b %d")
+            return f"{kst_str}"
+
+        def get_color(acc):
+            if acc >= 70: return '#FF4B4B'
+            elif acc >= 50: return '#FFA15A'
+            else: return '#1E90FF'
+
+        def make_text(row):
+            return f"{row['accuracy']:.1f}%({int(row['correct_count'])}/{int(row['total_count'])})"
+
+        daily_df['date_label'] = daily_df['date'].apply(make_dual_label)
+        daily_df['color'] = daily_df['accuracy'].apply(get_color)
+        daily_df['display_text'] = daily_df.apply(make_text, axis=1)
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=daily_df['date_label'],
+            y=daily_df['accuracy'],
+            marker_color=daily_df['color'],
+            text=daily_df['display_text'],
+            textposition='outside',
+            hoverinfo='none'
+        ))
+
+        fig.update_layout(
+            title='',
+            template="plotly_dark",
+            yaxis_range=[0, 115],
+            bargap=0.3,
+            margin=dict(l=20, r=20, t=30, b=20)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- [리스트 섹션] (모바일 최적화) ---
+    st.divider()
+    tab1, tab2 = st.tabs(["📅 경기 예측 리스트", "📊 원본 데이터"])
+    
+    df_display = df.sort_values('date', ascending=False)
+    
+    with tab1:
+        dates = df_display['date'].dt.strftime('%Y-%m-%d').unique()
+        for date in dates:
+            # 날짜 헤더 (크게)
+            st.markdown(f"#### 📅 {date}")
+            
+            day_df = df_display[df_display['date'].dt.strftime('%Y-%m-%d') == date]
+            
+            for _, row in day_df.iterrows():
+                # 모바일 최적화를 위해 2개 컬럼으로 단순화
+                c_match, c_result = st.columns([1.5, 1])
+                
+                with c_match:
+                    v_logo = get_logo_html(row['visit_team'])
+                    h_logo = get_logo_html(row['home_team'])
+                    
+                    st.markdown(
+                        f"""
+                        <div style="display:flex; align-items:center; height:100%;">
+                            <span style="font-size:16px; font-weight:bold;">
+                                {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
+                            </span>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
+
+                with c_result:
+                    pick = row['predicted_winner']
+                    actual = row['actual_winner']
+                    
+                    if pd.isna(row['is_correct']):
+                        st.info(f"🤖 Pick: {pick}")
+                    elif row['is_correct'] == 1:
+                        st.success(f"✅ Pick: {pick} / 실제: {actual}")
+                    else:
+                        st.error(f"❌ Pick: {pick} / 실제: {actual}")
+                
+                st.markdown("---") # 구분선
+
+    with tab2:
+        st.dataframe(df_display)
