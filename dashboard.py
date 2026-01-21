@@ -1,176 +1,155 @@
 """
 ================================================================================
-[파일명: dashboard.py] - 무조건 되는 최종 버전
+[파일명: dashboard.py] - 문구 수정 완료 (미국 동부 ET 명시)
 ================================================================================
 """
 import streamlit as st
 import sqlite3
 import pandas as pd
-import os
-import plotly.graph_objects as go
+import altair as alt
 from datetime import datetime
 
-# 1. 페이지 설정
-st.set_page_config(page_title="NBA AI Predictor", page_icon="🏀", layout="wide")
-
-# 2. DB 경로 및 로드 함수
-def get_db_path():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, "nba_data.db")
+# -----------------------------------------------------------------------------
+# 1. 설정 및 데이터 로드
+# -----------------------------------------------------------------------------
+st.set_page_config(page_title="NBA AI 예측 대시보드", page_icon="🏀", layout="wide")
+DB_PATH = "nba_data.db"
 
 def load_data():
-    conn = sqlite3.connect(get_db_path())
-    query = "SELECT * FROM predictions"
+    conn = sqlite3.connect(DB_PATH)
+    # 날짜순 정렬해서 가져오기
+    query = "SELECT * FROM predictions ORDER BY date DESC"
     df = pd.read_sql(query, conn)
     conn.close()
     return df
 
-# 3. 로고 데이터
-TEAM_LOGOS = {
-    'ATL': 'https://upload.wikimedia.org/wikipedia/en/2/24/Atlanta_Hawks_logo.svg',
-    'BOS': 'https://upload.wikimedia.org/wikipedia/en/8/8f/Boston_Celtics.svg',
-    'BKN': 'https://upload.wikimedia.org/wikipedia/commons/4/44/Brooklyn_Nets_newlogo.svg',
-    'CHA': 'https://upload.wikimedia.org/wikipedia/en/c/c4/Charlotte_Hornets_%282014%29.svg',
-    'CHI': 'https://upload.wikimedia.org/wikipedia/en/6/67/Chicago_Bulls_logo.svg',
-    'CLE': 'https://upload.wikimedia.org/wikipedia/en/4/4b/Cleveland_Cavaliers_logo.svg',
-    'DAL': 'https://upload.wikimedia.org/wikipedia/en/9/97/Dallas_Mavericks_logo14.svg',
-    'DEN': 'https://upload.wikimedia.org/wikipedia/en/7/76/Denver_Nuggets.svg',
-    'DET': 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Pistons_logo17.svg',
-    'GSW': 'https://upload.wikimedia.org/wikipedia/en/0/01/Golden_State_Warriors_logo.svg',
-    'HOU': 'https://upload.wikimedia.org/wikipedia/en/2/28/Houston_Rockets.svg',
-    'IND': 'https://upload.wikimedia.org/wikipedia/en/1/1b/Indiana_Pacers.svg',
-    'LAC': 'https://upload.wikimedia.org/wikipedia/en/b/bb/Los_Angeles_Clippers_%282015%29.svg',
-    'LAL': 'https://upload.wikimedia.org/wikipedia/commons/3/3c/Los_Angeles_Lakers_logo.svg',
-    'MEM': 'https://upload.wikimedia.org/wikipedia/en/f/f1/Memphis_Grizzlies.svg',
-    'MIA': 'https://upload.wikimedia.org/wikipedia/en/f/fb/Miami_Heat_logo.svg',
-    'MIL': 'https://upload.wikimedia.org/wikipedia/en/4/4a/Milwaukee_Bucks_logo.svg',
-    'MIN': 'https://upload.wikimedia.org/wikipedia/en/c/c2/Minnesota_Timberwolves_logo.svg',
-    'NOP': 'https://upload.wikimedia.org/wikipedia/en/0/0d/New_Orleans_Pelicans_logo.svg',
-    'NYK': 'https://upload.wikimedia.org/wikipedia/en/2/25/New_York_Knicks_logo.svg',
-    'OKC': 'https://upload.wikimedia.org/wikipedia/en/5/5d/Oklahoma_City_Thunder.svg',
-    'ORL': 'https://upload.wikimedia.org/wikipedia/en/1/10/Orlando_Magic_logo.svg',
-    'PHI': 'https://upload.wikimedia.org/wikipedia/en/0/0e/Philadelphia_76ers_logo.svg',
-    'PHX': 'https://upload.wikimedia.org/wikipedia/en/5/56/Phoenix_Suns_logo.svg',
-    'POR': 'https://upload.wikimedia.org/wikipedia/en/2/21/Portland_Trail_Blazers_logo.svg',
-    'SAC': 'https://upload.wikimedia.org/wikipedia/en/c/c7/SacramentoKings.svg',
-    'SAS': 'https://upload.wikimedia.org/wikipedia/en/a/a2/San_Antonio_Spurs.svg',
-    'TOR': 'https://upload.wikimedia.org/wikipedia/en/3/36/Toronto_Raptors_logo.svg',
-    'UTA': 'https://upload.wikimedia.org/wikipedia/en/0/04/Utah_Jazz_logo_%282016%29.svg',
-    'WAS': 'https://upload.wikimedia.org/wikipedia/en/0/02/Washington_Wizards_logo.svg'
-}
+# 데이터 불러오기
+df = load_data()
 
-def get_logo_html(team_abbr, width=25):
-    url = TEAM_LOGOS.get(team_abbr, "")
-    if url:
-        return f'<img src="{url}" width="{width}" style="vertical-align:middle; margin-right:5px;">'
-    return ""
-
-# 4. 메인 화면
-st.title("🏀 NBA - UV Predictor")
-st.markdown("### Allakers x Google Gemini 승부예측 시스템")
-st.divider()
-
-# 데이터 로드 (여기가 문제였던 부분! 완벽하게 고침)
-try:
-    df = load_data()
-except Exception as e:
-    st.error(f"DB Error: {e}")
-    st.stop()
+# 제목
+st.title("🏀 NBA AI 승부예측 대시보드")
 
 if df.empty:
-    st.warning("데이터가 없습니다. run_nba.py를 실행해주세요!")
+    st.warning("아직 데이터가 없습니다. run_nba.py를 실행해주세요.")
+    st.stop()
+
+# -----------------------------------------------------------------------------
+# 2. [상단] 적중률 추이 그래프 (막대 그래프 + 색상)
+# -----------------------------------------------------------------------------
+st.header("📊 일별 예측 성적표 (최근 7일)")
+
+# 1) 데이터 가공
+daily_stats = df.groupby('date').agg(
+    total_games=('home_team', 'count'), 
+    correct_games=('is_correct', 'sum') 
+).reset_index()
+
+# 적중률(%) 계산
+daily_stats['accuracy'] = (daily_stats['correct_games'] / daily_stats['total_games']) * 100
+daily_stats['accuracy'] = daily_stats['accuracy'].fillna(0)
+
+# 색상 컬럼을 미리 계산
+def get_bar_color(acc):
+    if acc >= 65:
+        return 'red'
+    elif acc >= 50:
+        return 'orange'
+    else:
+        return 'blue'
+
+daily_stats['bar_color'] = daily_stats['accuracy'].apply(get_bar_color)
+
+# 라벨 텍스트 생성
+daily_stats['label_text'] = daily_stats.apply(
+    lambda x: f"{int(x['correct_games'])}/{int(x['total_games'])} ({x['accuracy']:.1f}%)", 
+    axis=1
+)
+
+# 최근 7일치만 자르기
+daily_stats = daily_stats.sort_values('date', ascending=True).tail(7)
+
+# 2) 그래프 그리기
+base = alt.Chart(daily_stats).encode(
+    x=alt.X('date', title='날짜')
+)
+
+# 막대 그래프
+bars = base.mark_bar().encode(
+    y=alt.Y('accuracy', title='적중률(%)', scale=alt.Scale(domain=[0, 110])),
+    color=alt.Color('bar_color', scale=None),
+    tooltip=alt.value(None)
+)
+
+# 텍스트 라벨
+text = base.mark_text(
+    align='center',
+    baseline='bottom',
+    dy=-5,
+    fontSize=14,
+    fontWeight='bold'
+).encode(
+    y='accuracy',
+    text='label_text'
+)
+
+final_chart = (bars + text).properties(height=350)
+
+st.altair_chart(final_chart, use_container_width=True)
+
+st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# 3. [하단] 상세 데이터 (달력 필터)
+# -----------------------------------------------------------------------------
+st.header("📋 일별 상세 예측 리포트")
+
+# 날짜 컬럼 변환
+df['date_dt'] = pd.to_datetime(df['date']).dt.date
+unique_dates = sorted(df['date_dt'].unique(), reverse=True)
+
+if not unique_dates:
+    st.stop()
+
+# [수정됨] 문구 변경: 확인하고 싶은 날짜(미국 동부 ET)를 선택하세요
+selected_date = st.date_input(
+    "확인하고 싶은 날짜(미국 동부 ET)를 선택하세요:", 
+    value=unique_dates[0],
+    min_value=min(unique_dates),
+    max_value=max(unique_dates)
+)
+
+filtered_df = df[df['date_dt'] == selected_date].copy()
+
+if filtered_df.empty:
+    st.info(f"선택하신 날짜 ({selected_date})에는 데이터가 없습니다.")
 else:
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values('date', ascending=False)
-
-    finished_all = df.dropna(subset=['is_correct'])
-    correct_all = finished_all[finished_all['is_correct'] == 1]
+    total = len(filtered_df)
+    finished_games = filtered_df[filtered_df['actual_winner'].notnull()]
+    finished_count = len(finished_games)
     
-    acc_all = 0.0
-    if len(finished_all) > 0:
-        acc_all = (len(correct_all) / len(finished_all)) * 100
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("총 예측 DB", f"{len(df)} Game")
-    c2.metric("채점 완료", f"{len(finished_all)} Game")
-    c3.metric("전체 누적 적중률", f"{acc_all:.1f}%")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("총 경기 수", f"{total} 경기")
     
-    st.divider()
+    if finished_count > 0:
+        correct = finished_games['is_correct'].sum()
+        acc = (correct / finished_count) * 100
+        col2.metric("진행된 경기", f"{finished_count} 경기")
+        col3.metric("적중률", f"{acc:.1f}%")
+    else:
+        col2.metric("상태", "경기 예정")
+        col3.metric("적중률", "-")
 
-    # --- 그래프 ---
-    if len(finished_all) > 0:
-        st.subheader("📈 일별 적중률 변화 (Game Date 기준)")
-        
-        daily_stats = finished_all.groupby('date').agg(
-            accuracy=('is_correct', 'mean'),
-            correct_count=('is_correct', 'sum'),
-            total_count=('is_correct', 'count')
-        ).reset_index()
-        
-        daily_stats['accuracy'] = daily_stats['accuracy'] * 100
-        daily_df = daily_stats.sort_values('date').tail(7).copy()
-        daily_df['date_label'] = daily_df['date'].dt.strftime("%b %d")
-        
-        def get_color(acc):
-            if acc >= 70: return '#FF4B4B'
-            elif acc >= 50: return '#FFA15A'
-            else: return '#1E90FF'
-
-        daily_df['color'] = daily_df['accuracy'].apply(get_color)
-        daily_df['display_text'] = daily_df.apply(lambda r: f"{r['accuracy']:.1f}%({int(r['correct_count'])}/{int(r['total_count'])})", axis=1)
-
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=daily_df['date_label'],
-            y=daily_df['accuracy'],
-            marker_color=daily_df['color'],
-            text=daily_df['display_text'],
-            textposition='outside',
-            hoverinfo='none'
-        ))
-        fig.update_layout(title='', template="plotly_dark", yaxis_range=[0, 115], bargap=0.3, margin=dict(l=20, r=20, t=30, b=20))
-        st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
+    display_df = filtered_df[['home_team', 'visit_team', 'predicted_winner', 'predicted_gap', 'actual_winner', 'is_correct']]
+    display_df.columns = ['홈 팀', '원정 팀', 'AI 예측', '예상 격차', '실제 승자', '적중 여부']
     
-    # --- 리스트 ---
-    tab1, tab2 = st.tabs(["📅 경기 날짜별 보기", "📊 원본 데이터"])
+    def mark_ox(val):
+        if pd.isna(val): return "⏳ 대기"
+        return "✅ 정답" if val == 1 else "❌ 오답"
     
-    with tab1:
-        unique_dates = sorted(df['date'].dt.date.unique(), reverse=True)
-        for game_date in unique_dates:
-            day_df = df[df['date'].dt.date == game_date]
-            day_finished = day_df.dropna(subset=['is_correct'])
-            day_correct = day_finished[day_finished['is_correct'] == 1]
-            day_pending = day_df[day_df['is_correct'].isna()]
-            
-            stat_text = "-"
-            if len(day_finished) > 0:
-                day_acc = (len(day_correct) / len(day_finished)) * 100
-                stat_text = f"🔥 적중률: {day_acc:.1f}% ({len(day_correct)}/{len(day_finished)})"
-            elif len(day_pending) > 0:
-                 stat_text = "⏳ 경기 준비 중"
+    display_df['적중 여부'] = display_df['적중 여부'].apply(mark_ox)
+    display_df['예상 격차'] = display_df['예상 격차'].apply(lambda x: f"{x:.2f}")
 
-            st.markdown(f"### 📅 {game_date}  |  {stat_text}")
-            
-            for _, row in day_df.iterrows():
-                c_match, c_result = st.columns([1.5, 1])
-                with c_match:
-                    v_logo = get_logo_html(row['visit_team'])
-                    h_logo = get_logo_html(row['home_team'])
-                    st.markdown(f"""<div style="display:flex; align-items:center; height:100%;">
-                            <span style="font-size:16px; font-weight:bold;">
-                                {v_logo} {row['visit_team']} <span style="color:#aaa; margin:0 5px;">vs</span> {h_logo} {row['home_team']}
-                            </span></div>""", unsafe_allow_html=True)
-                with c_result:
-                    if pd.isna(row['is_correct']):
-                        st.info(f"🤖 Pick: {row['predicted_winner']} (대기)")
-                    elif row['is_correct'] == 1:
-                        st.success(f"✅ Pick: {row['predicted_winner']} / 실제: {row['actual_winner']}")
-                    else:
-                        st.error(f"❌ Pick: {row['predicted_winner']} / 실제: {row['actual_winner']}")
-                st.markdown("---")
-            st.markdown("<br>", unsafe_allow_html=True)
+    st.table(display_df)
 
-    with tab2:
-        st.dataframe(df)
+if st.button("데이터 새로고침"):
+    st.rerun()
