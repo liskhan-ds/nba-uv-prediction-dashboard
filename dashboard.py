@@ -140,7 +140,7 @@ else:
         col3.metric("적중률", "-")
 
     display_df = filtered_df[['home_team', 'visit_team', 'predicted_winner', 'predicted_gap', 'actual_winner', 'is_correct']]
-    display_df.columns = ['홈 팀', '원정 팀', 'AI 예측', '예상 격차(uv)', '실제 승자', '적중 여부']
+    display_df.columns = ['홈 팀', '원정 팀', '예측 승리팀', '예상 격차(uv)', '실제 승리팀', '적중 여부']
     
     def mark_ox(val):
         if pd.isna(val): return "⏳ 대기"
