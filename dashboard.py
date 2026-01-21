@@ -147,7 +147,7 @@ else:
         return "✅ 정답" if val == 1 else "❌ 오답"
     
     display_df['적중 여부'] = display_df['적중 여부'].apply(mark_ox)
-    display_df['예상 격차'] = display_df['예상 격차'].apply(lambda x: f"{x:.2f}")
+    display_df['예상 격차(uv)'] = display_df['예상 격차(uv)'].apply(lambda x: f"{x:.2f}")
 
     st.table(display_df)
 
