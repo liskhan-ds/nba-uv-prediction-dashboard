@@ -41,7 +41,6 @@ df.loc[valid_mask, 'total_no'] = range(1, len(df[valid_mask]) + 1)
 df['total_no'] = df['total_no'].fillna('취소')
 
 # 2. 통계용 데이터: 취소된 경기도 아니고, 실제 결과(actual_winner)가 기록된 경기만!
-# (내일 경기나 아직 안 끝난 경기는 actual_winner가 비어있거나 NULL이므로 제외됨)
 stats_df = df[
     (df['actual_winner'] != 'Postponed') & 
     (df['actual_winner'].notna()) & 
@@ -78,7 +77,7 @@ else:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 2. [중단] 일별 예측 성적표 (결과가 나온 날짜만 표시)
+# 2. [중단] 일별 예측 성적표 (6단계 등급 및 라벨 수정)
 # -----------------------------------------------------------------------------
 st.header("📈 일별 예측 성적표 (최근 7일)")
 
@@ -90,16 +89,20 @@ if not stats_df.empty:
 
     daily_stats['accuracy'] = (daily_stats['correct_games'] / daily_stats['total_games']) * 100
     
+    # 6단계 색상 로직 함수
     def get_bar_color(acc):
-        if acc >= 60: return '#A020F0'
-        elif acc >= 55: return '#FF0000'
-        elif acc >= 52.4: return '#FFA500'
-        elif acc >= 35: return '#1E90FF'
-        else: return '#008000'
+        if acc >= 60: return '#A020F0'      # 보라 (신계)
+        elif acc >= 55: return '#FF0000'    # 빨강 (초고수/AI)
+        elif acc >= 52.4: return '#FFA500'  # 주황 (프로/고수)
+        elif acc >= 45: return '#1E90FF'    # 파랑 (노력하는 일반인)
+        elif acc >= 35: return '#008000'    # 녹색 (지극히 정상인)
+        else: return '#808080'             # 회색 (예측 금지)
 
     daily_stats['bar_color'] = daily_stats['accuracy'].apply(get_bar_color)
+    
+    # [수정] 모바일 겹침 방지를 위해 예측 성공 숫자만 노출 (예: 6/7)
     daily_stats['label_text'] = daily_stats.apply(
-        lambda x: f"{int(x['correct_games'])}/{int(x['total_games'])} ({x['accuracy']:.1f}%)", 
+        lambda x: f"{int(x['correct_games'])}/{int(x['total_games'])}", 
         axis=1
     )
 
@@ -118,13 +121,15 @@ if not stats_df.empty:
 else:
     st.info("통계를 표시할 수 있는 종료된 경기가 아직 없습니다.")
 
+# [수정] 6단계 등급 범례 하단 표시
 st.markdown("""
 <div style="text-align: center; padding: 12px; background-color: #f0f2f6; border-radius: 10px; line-height: 1.6;">
     <span style="color: #A020F0;">●</span> <b>신계</b> (60%↑) &nbsp;&nbsp;
     <span style="color: #FF0000;">●</span> <b>초고수/AI</b> (55%~60%) &nbsp;&nbsp;
     <span style="color: #FFA500;">●</span> <b>프로/고수</b> (52.4%~55%) &nbsp;&nbsp;
-    <span style="color: #1E90FF;">●</span> <b>일반인</b> (35%~52.4%) &nbsp;&nbsp;
-    <span style="color: #008000;">●</span> <b>예측 금지</b> (35%↓)
+    <span style="color: #1E90FF;">●</span> <b>노력하는 일반인</b> (45%~52.4%) &nbsp;&nbsp;
+    <span style="color: #008000;">●</span> <b>지극히 정상인</b> (35%~45%) &nbsp;&nbsp;
+    <span style="color: #808080;">●</span> <b>예측 금지</b> (35%↓)
     <br><small>* 52.4%는 통계적 손익분기점(Breakeven) 기준입니다.</small>
 </div>
 """, unsafe_allow_html=True)
@@ -148,7 +153,6 @@ if not filtered_df.empty:
     filtered_df.loc[day_valid_mask, 'day_no'] = range(1, len(filtered_df[day_valid_mask]) + 1)
     filtered_df['day_no'] = filtered_df['day_no'].fillna('취소')
 
-    # 해당 날짜 중 '결과가 나온' 경기만 따로 카운트
     day_stats_mask = (filtered_df['actual_winner'] != 'Postponed') & (filtered_df['actual_winner'].notna()) & (filtered_df['actual_winner'] != '')
     finished_games = filtered_df[day_stats_mask]
     finished_count = len(finished_games)
@@ -187,7 +191,7 @@ if st.button("데이터 새로고침"):
     st.rerun()
 
 # -----------------------------------------------------------------------------
-# 4. [최하단] 푸터 문구 (요청사항 1번)
+# 4. [최하단] 푸터 문구
 # -----------------------------------------------------------------------------
 st.markdown("---")
 st.markdown(
