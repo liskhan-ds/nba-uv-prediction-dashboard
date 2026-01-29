@@ -32,39 +32,42 @@ if df.empty:
     st.stop()
 
 # -----------------------------------------------------------------------------
-# [로직 수정] 취소 경기 제외 넘버링 (Total No.)
+# [로직 수정] 적중률 계산 및 넘버링 필터링
 # -----------------------------------------------------------------------------
+# 1. 취소 경기 제외 넘버링
 df['total_no'] = None
-# 실제 결과가 Postponed가 아닌 경기만 필터링하여 넘버링 부여
 valid_mask = df['actual_winner'] != 'Postponed'
 df.loc[valid_mask, 'total_no'] = range(1, len(df[valid_mask]) + 1)
-# 취소된 경기는 넘버링 대신 '취소' 문구 표기
 df['total_no'] = df['total_no'].fillna('취소')
 
-# 통계용 데이터 (취소 제외)
-valid_df = df[df['actual_winner'] != 'Postponed'].copy()
+# 2. 통계용 데이터: 취소된 경기도 아니고, 실제 결과(actual_winner)가 기록된 경기만!
+# (내일 경기나 아직 안 끝난 경기는 actual_winner가 비어있거나 NULL이므로 제외됨)
+stats_df = df[
+    (df['actual_winner'] != 'Postponed') & 
+    (df['actual_winner'].notna()) & 
+    (df['actual_winner'] != '')
+].copy()
 
 # -----------------------------------------------------------------------------
 # 1. [상단] 누적 예측 성적표 & 100경기 트래킹
 # -----------------------------------------------------------------------------
 st.header("📊 누적 예측 성적표")
-total_valid = len(valid_df)
-correct_total = valid_df['is_correct'].sum()
+total_stats = len(stats_df)
+correct_total = stats_df['is_correct'].sum()
 
 col_acc, col_track = st.columns([2, 1])
 
-if total_valid > 0:
-    total_acc = (correct_total / total_valid) * 100
+if total_stats > 0:
+    total_acc = (correct_total / total_stats) * 100
     # 60% 이상이면 '신계' 문구 추가
     status_suffix = " (⚡ 신계, 시장 왜곡급)" if total_acc >= 60 else ""
     
     with col_acc:
         st.subheader(f"전체 예측률: `{total_acc:.2f}%`{status_suffix}")
-        st.markdown(f"**적중 경기 수:** {int(correct_total)} / **통산 경기 수:** {total_valid}")
+        st.markdown(f"**적중 경기 수:** {int(correct_total)} / **통산 경기 수:** {total_stats}")
     
     with col_track:
-        # 100경기까지 남은 경기 수 계산
-        remaining = 100 - total_valid
+        remaining = 100 - total_stats
         if remaining > 0:
             st.metric("100경기 시스템 검증까지", f"{remaining}경기 남음")
         else:
@@ -75,51 +78,46 @@ else:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 2. [중단] 일별 예측 성적표 (5단계 등급별 색상)
+# 2. [중단] 일별 예측 성적표 (결과가 나온 날짜만 표시)
 # -----------------------------------------------------------------------------
 st.header("📈 일별 예측 성적표 (최근 7일)")
 
-# 날짜별 통계 계산
-daily_stats = valid_df.groupby('date').agg(
-    total_games=('home_team', 'count'), 
-    correct_games=('is_correct', 'sum') 
-).reset_index()
+if not stats_df.empty:
+    daily_stats = stats_df.groupby('date').agg(
+        total_games=('home_team', 'count'), 
+        correct_games=('is_correct', 'sum') 
+    ).reset_index()
 
-daily_stats['accuracy'] = (daily_stats['correct_games'] / daily_stats['total_games']) * 100
-daily_stats['accuracy'] = daily_stats['accuracy'].fillna(0)
+    daily_stats['accuracy'] = (daily_stats['correct_games'] / daily_stats['total_games']) * 100
+    
+    def get_bar_color(acc):
+        if acc >= 60: return '#A020F0'
+        elif acc >= 55: return '#FF0000'
+        elif acc >= 52.4: return '#FFA500'
+        elif acc >= 35: return '#1E90FF'
+        else: return '#008000'
 
-# [수정] 5단계 등급별 색상 매핑 함수
-def get_bar_color(acc):
-    if acc >= 60: return '#A020F0'      # 보라색 (신계)
-    elif acc >= 55: return '#FF0000'    # 빨간색 (초고수/AI)
-    elif acc >= 52.4: return '#FFA500'  # 주황색 (프로/고수)
-    elif acc >= 35: return '#1E90FF'    # 파란색 (일반인/운빨)
-    else: return '#008000'             # 녹색 (예측 금지)
+    daily_stats['bar_color'] = daily_stats['accuracy'].apply(get_bar_color)
+    daily_stats['label_text'] = daily_stats.apply(
+        lambda x: f"{int(x['correct_games'])}/{int(x['total_games'])} ({x['accuracy']:.1f}%)", 
+        axis=1
+    )
 
-daily_stats['bar_color'] = daily_stats['accuracy'].apply(get_bar_color)
+    daily_stats_7d = daily_stats.sort_values('date', ascending=True).tail(7)
 
-# 막대 위에 표시할 텍스트 라벨
-daily_stats['label_text'] = daily_stats.apply(
-    lambda x: f"{int(x['correct_games'])}/{int(x['total_games'])} ({x['accuracy']:.1f}%)", 
-    axis=1
-)
+    base = alt.Chart(daily_stats_7d).encode(x=alt.X('date', title='날짜(미국 현지)'))
+    bars = base.mark_bar().encode(
+        y=alt.Y('accuracy', title='적중률(%)', scale=alt.Scale(domain=[0, 110])),
+        color=alt.Color('bar_color', scale=None),
+        tooltip=['date', 'accuracy', 'total_games']
+    )
+    text = base.mark_text(align='center', baseline='bottom', dy=-5, fontSize=14, fontWeight='bold').encode(
+        y='accuracy', text='label_text'
+    )
+    st.altair_chart((bars + text).properties(height=350), use_container_width=True)
+else:
+    st.info("통계를 표시할 수 있는 종료된 경기가 아직 없습니다.")
 
-# 최근 7일치 데이터 추출
-daily_stats_7d = daily_stats.sort_values('date', ascending=True).tail(7)
-
-# Altair 차트 생성
-base = alt.Chart(daily_stats_7d).encode(x=alt.X('date', title='날짜(미국 현지)'))
-bars = base.mark_bar().encode(
-    y=alt.Y('accuracy', title='적중률(%)', scale=alt.Scale(domain=[0, 110])),
-    color=alt.Color('bar_color', scale=None),
-    tooltip=['date', 'accuracy', 'total_games']
-)
-text = base.mark_text(align='center', baseline='bottom', dy=-5, fontSize=14, fontWeight='bold').encode(
-    y='accuracy', text='label_text'
-)
-st.altair_chart((bars + text).properties(height=350), use_container_width=True)
-
-# 그래프 하단 5단계 등급 범례 (Legend)
 st.markdown("""
 <div style="text-align: center; padding: 12px; background-color: #f0f2f6; border-radius: 10px; line-height: 1.6;">
     <span style="color: #A020F0;">●</span> <b>신계</b> (60%↑) &nbsp;&nbsp;
@@ -134,11 +132,10 @@ st.markdown("""
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 3. [하단] 일별 상세 예측 리포트 (족보 정리)
+# 3. [하단] 일별 상세 예측 리포트
 # -----------------------------------------------------------------------------
 st.header("📋 일별 상세 예측 리포트")
 
-# 날짜 선택 필터
 df['date_dt'] = pd.to_datetime(df['date']).dt.date
 unique_dates = sorted(df['date_dt'].unique(), reverse=True)
 
@@ -146,14 +143,14 @@ selected_date = st.date_input("확인하고 싶은 날짜를 선택하세요:", 
 filtered_df = df[df['date_dt'] == selected_date].copy().reset_index(drop=True)
 
 if not filtered_df.empty:
-    # 해당 날짜 내 경기 순번 (Day No) - 취소 경기 제외 로직 동일 적용
     filtered_df['day_no'] = None
     day_valid_mask = filtered_df['actual_winner'] != 'Postponed'
     filtered_df.loc[day_valid_mask, 'day_no'] = range(1, len(filtered_df[day_valid_mask]) + 1)
     filtered_df['day_no'] = filtered_df['day_no'].fillna('취소')
 
-    # 통계 메트릭
-    finished_games = filtered_df[day_valid_mask]
+    # 해당 날짜 중 '결과가 나온' 경기만 따로 카운트
+    day_stats_mask = (filtered_df['actual_winner'] != 'Postponed') & (filtered_df['actual_winner'].notna()) & (filtered_df['actual_winner'] != '')
+    finished_games = filtered_df[day_stats_mask]
     finished_count = len(finished_games)
     
     col1, col2, col3 = st.columns(3)
@@ -165,7 +162,6 @@ if not filtered_df.empty:
     else:
         col3.metric("일일 적중률", "-")
 
-    # 테이블 표시용 데이터 프레임 구성
     display_df = filtered_df[[
         'day_no', 'total_no', 'home_team', 'visit_team', 
         'predicted_winner', 'predicted_gap', 'actual_winner', 'is_correct'
@@ -176,22 +172,30 @@ if not filtered_df.empty:
         '예측 승리팀', '예상 격차(uv)', '실제 승리팀', '적중 여부'
     ]
     
-    # 적중 여부 마킹 함수
     def mark_ox(row):
         if row['실제 승리팀'] == 'Postponed': return "🆖 취소"
-        if pd.isna(row['적중 여부']): return "⏳ 대기"
+        if pd.isna(row['적중 여부']) or row['실제 승리팀'] == '': return "⏳ 대기"
         return "✅ 정답" if row['적중 여부'] == 1 else "❌ 오답"
     
     display_df['적중 여부'] = display_df.apply(mark_ox, axis=1)
     display_df['예상 격차(uv)'] = display_df['예상 격차(uv)'].apply(lambda x: f"{x:.2f}")
-    display_df['실제 승리팀'] = display_df['실제 승리팀'].replace('Postponed', '취소됨')
+    display_df['실제 승리팀'] = display_df['실제 승리팀'].replace('Postponed', '취소됨').fillna('⏳ 대기 중')
 
-    # 데이터 프레임 출력
-    st.dataframe(
-        display_df,
-        hide_index=True,
-        use_container_width=True
-    )
+    st.dataframe(display_df, hide_index=True, use_container_width=True)
 
 if st.button("데이터 새로고침"):
     st.rerun()
+
+# -----------------------------------------------------------------------------
+# 4. [최하단] 푸터 문구 (요청사항 1번)
+# -----------------------------------------------------------------------------
+st.markdown("---")
+st.markdown(
+    """
+    <div style="text-align: center; color: #888888; padding-top: 20px;">
+        <p>ⓒ DROPSHOT (사업자 번호: 578-81-03214)</p>
+        <p>Contact us: liskhan@gmail.com</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
