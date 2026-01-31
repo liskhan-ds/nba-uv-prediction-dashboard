@@ -25,7 +25,7 @@ def load_data():
 df = load_data()
 
 # 제목
-st.title("🏀 NBA WUV predictor 승부예측 대시보드")
+st.title("🏀 NBA AI 승부예측(by WUV predictor)")
 
 if df.empty:
     st.warning("아직 데이터가 없습니다. run_nba.py를 실행해주세요.")
