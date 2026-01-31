@@ -8,7 +8,7 @@ from datetime import datetime
 # -----------------------------------------------------------------------------
 # 1. 설정 및 데이터 로드
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="NBA AI 예측 대시보드", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="NBA AI 승부 예측", page_icon="🏀", layout="wide")
 
 # 실행 경로와 관계없이 DB를 찾을 수 있도록 절대 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +25,7 @@ def load_data():
 df = load_data()
 
 # 제목
-st.title("🏀 NBA UV predictor 승부예측 대시보드")
+st.title("🏀 NBA WUV predictor 승부예측 대시보드")
 
 if df.empty:
     st.warning("아직 데이터가 없습니다. run_nba.py를 실행해주세요.")
