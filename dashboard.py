@@ -28,13 +28,20 @@ def load_data():
 
 df = load_data()
 
-# 제목 및 상단 네비게이션
-col_title, col_nav = st.columns([3, 1])
-with col_title:
-    st.title("🏀 NBA AI 승부예측(by WUV predictor)")
-with col_nav:
-    st.write("")
-    st.link_button("⚾ MLB 대시보드 바로가기 ↗", "https://mlb-uv-prediction-dashboard.streamlit.app/")
+# 상단 탭 네비게이션
+nav_col1, nav_col2, _ = st.columns([2, 2, 6])
+with nav_col1:
+    st.button("🏀 NBA 대시보드 (현재)", disabled=True)
+with nav_col2:
+    st.link_button(
+        "⚾ MLB 대시보드 이동 ↗", 
+        "https://mlb-uv-prediction-dashboard.streamlit.app/"
+    )
+
+st.divider()
+
+# 기존 타이틀 및 본문 출력
+st.title("🏀 NBA AI 승부예측(by WUV predictor)")
 
 if df.empty:
     st.warning("⚠️ 아직 예측 데이터가 없거나 DB를 불러올 수 없습니다. `run_nba.py`를 실행하여 데이터를 적재해주세요.")
