@@ -57,7 +57,10 @@ def init_db():
     CREATE TABLE teams_uv (
         team_abbr TEXT PRIMARY KEY,
         team_name TEXT,
+        top2_usg REAL,
+        usg_penalty REAL,
         starters_uv_sum REAL,
+        starters_adj_uv_sum REAL,
         starters_contrib REAL,
         rotation_uv_avg REAL,
         rotation_contrib REAL,
@@ -79,6 +82,7 @@ def init_db():
         reb REAL,
         ast REAL,
         pie REAL,
+        usg_pct REAL,
         individual_uv REAL,
         role_group TEXT,
         min_rank INTEGER,
@@ -117,7 +121,7 @@ def main():
     updated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     total_teams = len(TEAMS)
     
-    print(f"\n🏀 NBA 30개 팀 2026-27 수집 및 UV 계산 시작 (55:40:5 가중치 적용)...\n", flush=True)
+    print(f"\n🏀 NBA 30개 팀 2026-27 수집 및 [USG% 페널티 선차감 + 55:40:5 가중치] 계산 시작...\n", flush=True)
     
     for idx, (abbr, info) in enumerate(TEAMS.items(), 1):
         t_id, t_name = info['id'], info['name']
@@ -131,7 +135,7 @@ def main():
             df_adv = stats_adv[stats_adv['PLAYER_NAME'].isin(player_names)].copy()
             df_base = stats_base[stats_base['PLAYER_NAME'].isin(player_names)].copy()
             
-            merged = pd.merge(roster_df[['PLAYER', 'POSITION']], df_adv[['PLAYER_NAME', 'MIN', 'PIE']], left_on='PLAYER', right_on='PLAYER_NAME', how='left')
+            merged = pd.merge(roster_df[['PLAYER', 'POSITION']], df_adv[['PLAYER_NAME', 'MIN', 'PIE', 'USG_PCT']], left_on='PLAYER', right_on='PLAYER_NAME', how='left')
             merged = pd.merge(merged, df_base[['PLAYER_NAME', 'PTS', 'REB', 'AST']], on='PLAYER_NAME', how='left')
             
             merged['PIE'] = merged['PIE'].fillna(0.08)
@@ -139,17 +143,26 @@ def main():
             merged['PTS'] = merged['PTS'].fillna(0.0)
             merged['REB'] = merged['REB'].fillna(0.0)
             merged['AST'] = merged['AST'].fillna(0.0)
+            merged['USG_PCT'] = merged['USG_PCT'].fillna(0.15)
             
             merged['individual_uv'] = merged['PIE'].apply(calculate_individual_uv)
             merged = merged.sort_values(by='MIN', ascending=False).reset_index(drop=True)
             
-            # 55:40:5 가중치 계산
+            # 1. 주전 5인 선정
             starters = merged.head(5)
             rotation = merged.iloc[5:8]
             bench = merged.iloc[8:]
             
-            starters_sum = starters['individual_uv'].sum()
-            starters_contrib = starters_sum * 0.55
+            # 2. Top 2 USG% 페널티 계산 (Top 2 USG > 60% 시 차감)
+            top2_usg = starters.nlargest(2, 'USG_PCT')['USG_PCT'].sum()
+            usg_penalty = (top2_usg - 0.60) * 3.0 if top2_usg > 0.60 else 0.0
+            
+            # 3. [1단계] 주전 5인 전력에서 USG% 페널티 선차감
+            starters_uv_sum = starters['individual_uv'].sum()
+            starters_adj_uv_sum = max(0.0, starters_uv_sum - usg_penalty)
+            
+            # 4. [2단계] 55:40:5 가중치 결합
+            starters_contrib = starters_adj_uv_sum * 0.55
             
             rotation_avg = rotation['individual_uv'].mean() if not rotation.empty else 0.0
             rotation_contrib = (rotation_avg * 5.0) * 0.40 if not rotation.empty else 0.0
@@ -161,9 +174,9 @@ def main():
             
             cursor.execute('''
             INSERT INTO teams_uv 
-            (team_abbr, team_name, starters_uv_sum, starters_contrib, rotation_uv_avg, rotation_contrib, bench_uv_avg, bench_contrib, final_team_uv, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (abbr, t_name, starters_sum, starters_contrib, rotation_avg, rotation_contrib, bench_avg, bench_contrib, final_team_uv, updated_time))
+            (team_abbr, team_name, top2_usg, usg_penalty, starters_uv_sum, starters_adj_uv_sum, starters_contrib, rotation_uv_avg, rotation_contrib, bench_uv_avg, bench_contrib, final_team_uv, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (abbr, t_name, top2_usg, usg_penalty, starters_uv_sum, starters_adj_uv_sum, starters_contrib, rotation_avg, rotation_contrib, bench_avg, bench_contrib, final_team_uv, updated_time))
             
             for rank_idx, row in merged.iterrows():
                 min_rank = rank_idx + 1
@@ -173,11 +186,11 @@ def main():
                 
                 cursor.execute('''
                 INSERT INTO players_uv
-                (team_abbr, player_name, position, min_per_game, pts, reb, ast, pie, individual_uv, role_group, min_rank)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (abbr, row['PLAYER'], row['POSITION'], row['MIN'], row['PTS'], row['REB'], row['AST'], row['PIE'], row['individual_uv'], role_group, min_rank))
+                (team_abbr, player_name, position, min_per_game, pts, reb, ast, pie, usg_pct, individual_uv, role_group, min_rank)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (abbr, row['PLAYER'], row['POSITION'], row['MIN'], row['PTS'], row['REB'], row['AST'], row['PIE'], row['USG_PCT'], row['individual_uv'], role_group, min_rank))
                 
-            print(f"✅ 완료 (최종 팀 UV: {final_team_uv:.2f})")
+            print(f"✅ 완료 (최종 팀 UV: {final_team_uv:.2f} | USG 페널티: -{usg_penalty:.2f})")
             
         except Exception as e:
             print(f"❌ 실패: {e}")
@@ -185,7 +198,7 @@ def main():
         
     conn.commit()
     conn.close()
-    print("\n🎉 NBA 30개 팀 DB 구축 (55:40:5 가중치) 완료!")
+    print("\n🎉 USG% 페널티 차감 + 55:40:5 가중치 통합 DB 구축 완료!")
 
 if __name__ == "__main__":
     main()

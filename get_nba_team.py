@@ -23,7 +23,7 @@ def main():
     team_df = pd.read_sql("SELECT * FROM teams_uv WHERE team_abbr = ?", conn, params=(team_abbr,))
     
     if team_df.empty:
-        print(f"❌ '{team_abbr}' 팀 정보를 DB에서 찾을 수 없습니다. (올바른 팀 약어인지 확인하세요)")
+        print(f"❌ '{team_abbr}' 팀 정보를 DB에서 찾을 수 없습니다.")
         conn.close()
         sys.exit(1)
         
@@ -33,22 +33,26 @@ def main():
     players_df = pd.read_sql("SELECT * FROM players_uv WHERE team_abbr = ? ORDER BY min_rank ASC", conn, params=(team_abbr,))
     conn.close()
     
-    # 3. 출력 포맷 (55:40:5 가중치 반영)
+    penalty_str = f"-{t['usg_penalty']:.2f} (Top 2 USG: {t['top2_usg']*100:.1f}%)" if t['usg_penalty'] > 0 else "0.00 (정상 범위)"
+    
+    # 3. 출력 포맷 (USG% 페널티 선차감 + 55:40:5 가중치 결합)
     print("\n=========================================================================================")
     print(f"🏀 [2026-27 시즌 DB 즉시 조회] {t['team_name']} ({t['team_abbr']}) - UV 리포트")
     print("=========================================================================================")
-    print(f"• 55:40:5 가중치 적용 최종 팀 UV : 🌟 {t['final_team_uv']:.2f} (5.0 기준)")
-    print(f"  ├─ 1. 주전 5인 기여도 (55%)    : {t['starters_contrib']:.2f} (주전 UV 합산: {t['starters_uv_sum']:.2f})")
-    print(f"  ├─ 2. 핵심 3인 기여도 (40%)    : {t['rotation_contrib']:.2f} (핵심 UV 평균: {t['rotation_uv_avg']:.2f})")
-    print(f"  └─ 3. 딥 벤치 기여도 (5%)      : {t['bench_contrib']:.2f} (벤치 UV 평균: {t['bench_uv_avg']:.2f})")
+    print(f"• USG% 페널티 선차감 + 55:40:5 적용 최종 팀 UV : 🌟 {t['final_team_uv']:.2f} (5.0 기준)")
+    print(f"  ├─ 0. 주전 Top 2 USG% 공 다툼 페널티  : {penalty_str}")
+    print(f"  ├─ 1. 주전 5인 기여도 (55%)           : {t['starters_contrib']:.2f} (보정 후: {t['starters_adj_uv_sum']:.2f} / 순수 합계: {t['starters_uv_sum']:.2f})")
+    print(f"  ├─ 2. 핵심 3인 기여도 (40%)           : {t['rotation_contrib']:.2f} (핵심 UV 평균: {t['rotation_uv_avg']:.2f})")
+    print(f"  └─ 3. 딥 벤치 기여도 (5%)             : {t['bench_contrib']:.2f} (벤치 UV 평균: {t['bench_uv_avg']:.2f})")
     print("-----------------------------------------------------------------------------------------")
     print("📋 선수단 개별 UV 및 주요 스탯")
     print("-----------------------------------------------------------------------------------------")
-    print(f"| 순위 | 역할군 | 선수명 | 포지션 | MIN | PTS | REB | AST | PIE | 개별 UV |")
-    print(f"|---|---|---|---|---|---|---|---|---|---|")
+    print(f"| 순위 | 역할군 | 선수명 | 포지션 | MIN | PTS | REB | AST | USG% | PIE | 개별 UV |")
+    print(f"|---|---|---|---|---|---|---|---|---|---|---|")
     
     for idx, p in players_df.iterrows():
-        print(f"| {p['min_rank']} | {p['role_group']} | {p['player_name']} | {p['position']} | {p['min_per_game']:.1f}m | {p['pts']:.1f} | {p['reb']:.1f} | {p['ast']:.1f} | {p['pie']*100:.1f}% | {p['individual_uv']:.2f} |")
+        usg_val = p['usg_pct']*100 if 'usg_pct' in p and pd.notna(p['usg_pct']) else 0.0
+        print(f"| {p['min_rank']} | {p['role_group']} | {p['player_name']} | {p['position']} | {p['min_per_game']:.1f}m | {p['pts']:.1f} | {p['reb']:.1f} | {p['ast']:.1f} | {usg_val:.1f}% | {p['pie']*100:.1f}% | {p['individual_uv']:.2f} |")
         
     print("=========================================================================================\n")
 
