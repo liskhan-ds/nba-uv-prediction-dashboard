@@ -15,12 +15,16 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "nba_data.db")
 
 def load_data():
-    conn = sqlite3.connect(DB_PATH)
-    # 누적 번호 계산을 위해 날짜순(오름차순)으로 가져옴
-    query = "SELECT * FROM predictions ORDER BY date ASC, rowid ASC"
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df
+    if not os.path.exists(DB_PATH):
+        return pd.DataFrame()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        query = "SELECT * FROM predictions ORDER BY date ASC, rowid ASC"
+        df = pd.read_sql(query, conn)
+        conn.close()
+        return df
+    except Exception as e:
+        return pd.DataFrame()
 
 df = load_data()
 
@@ -28,7 +32,7 @@ df = load_data()
 st.title("🏀 NBA AI 승부예측(by WUV predictor)")
 
 if df.empty:
-    st.warning("아직 데이터가 없습니다. run_nba.py를 실행해주세요.")
+    st.warning("⚠️ 아직 예측 데이터가 없거나 DB를 불러올 수 없습니다. `run_nba.py`를 실행하여 데이터를 적재해주세요.")
     st.stop()
 
 # -----------------------------------------------------------------------------
