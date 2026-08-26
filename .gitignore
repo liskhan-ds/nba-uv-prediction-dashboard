@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.DS_Store
+nba_data.db
