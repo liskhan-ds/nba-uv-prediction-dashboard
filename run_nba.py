@@ -14,7 +14,7 @@ from thefuzz import fuzz
 # -----------------------------------------------------------------------------
 SEASON = '2025-26'
 DB_PATH = "nba_data.db"
-DASHBOARD_URL = "https://nba-uv-prediction-dashboard-6ahdkhmixcsa3uybaz6ez6.streamlit.app/"
+DASHBOARD_URL = "https://nba-uv-prediction.streamlit.app/"
 COACH_BONUS_VAL = 0.15
 
 TEAMS = {

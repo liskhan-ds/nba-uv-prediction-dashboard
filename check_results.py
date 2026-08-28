@@ -13,7 +13,7 @@ from nba_api.stats.endpoints import scoreboardv2
 # -----------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "nba_data.db")
-DASHBOARD_URL = "https://nba-uv-prediction-dashboard-6ahdkhmixcsa3uybaz6ez6.streamlit.app/"
+DASHBOARD_URL = "https://nba-uv-prediction.streamlit.app/"
 
 TEAMS = {
     '1610612737': 'ATL', '1610612738': 'BOS', '1610612751': 'BKN', '1610612766': 'CHA',

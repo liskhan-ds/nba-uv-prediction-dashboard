@@ -35,7 +35,7 @@ with nav_col1:
 with nav_col2:
     st.link_button(
         "⚾ MLB 대시보드 이동 ↗", 
-        "https://mlb-uv-prediction-dashboard.streamlit.app/"
+        "https://mlb-uv-prediction.streamlit.app/"
     )
 
 st.divider()
