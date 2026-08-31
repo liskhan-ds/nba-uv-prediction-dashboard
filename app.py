@@ -214,10 +214,7 @@ if not filtered_df.empty:
     display_df['예상 격차(uv)'] = display_df['예상 격차(uv)'].apply(lambda x: f"{x:.2f}")
     display_df['실제 승리팀'] = display_df['실제 승리팀'].replace('Postponed', '취소됨').fillna('⏳ 대기 중')
 
-    st.dataframe(display_df, hide_index=True, use_container_width=True)
-
-if st.button("데이터 새로고침"):
-    st.rerun()
+    st.dataframe(display_df, hide_index=True, use_container_width=True, height=600)
 
 # -----------------------------------------------------------------------------
 # 4. [최하단] 푸터 문구
