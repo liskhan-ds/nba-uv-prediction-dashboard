@@ -29,21 +29,21 @@ def load_data():
 df = load_data()
 
 # 상단 탭 네비게이션 (7대 종목)
-nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6, nav_col7 = st.columns(7)
-with nav_col1:
-    st.button("🏀 NBA (현재)", disabled=True, use_container_width=True)
-with nav_col2:
-    st.link_button("⚾ MLB ↗", "https://mlb-uv-prediction-dashboard.streamlit.app/", use_container_width=True)
-with nav_col3:
-    st.link_button("⚽ EPL ↗", "https://epl-uv-prediction-dashboard.streamlit.app/", use_container_width=True)
-with nav_col4:
-    st.link_button("⚽ 라리가 ↗", "https://pml-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_col5:
-    st.link_button("🏒 NHL ↗", "https://nhl-uv-prediction-dashboard.streamlit.app/", use_container_width=True)
-with nav_col6:
-    st.link_button("🏈 NFL ↗", "https://nfl-uv-prediction-dashboard.streamlit.app/", use_container_width=True)
-with nav_col7:
-    st.link_button("⚽ MLS ↗", "https://mls-uv-prediction.streamlit.app/", use_container_width=True)
+nav_cols = st.columns(7)
+with nav_cols[0]:
+    st.button("🏀 NBA 대시보드 (현재)", disabled=True, use_container_width=True)
+with nav_cols[1]:
+    st.link_button("⚾ MLB 대시보드 ↗", "https://mlb-uv-prediction.streamlit.app/", use_container_width=True)
+with nav_cols[2]:
+    st.link_button("⚽ EPL 대시보드 ↗", "https://epl-uv-prediction.streamlit.app/", use_container_width=True)
+with nav_cols[3]:
+    st.link_button("🏒 NHL 대시보드 ↗", "https://nhl-uv-prediction.streamlit.app/", use_container_width=True)
+with nav_cols[4]:
+    st.link_button("🏈 NFL 대시보드 ↗", "https://nfl-uv-prediction.streamlit.app/", use_container_width=True)
+with nav_cols[5]:
+    st.link_button("⚽ MLS 대시보드 ↗", "https://mls-uv-prediction.streamlit.app/", use_container_width=True)
+with nav_cols[6]:
+    st.link_button("⚽ LaLiga 대시보드 ↗", "https://pml-uv-prediction.streamlit.app/", use_container_width=True)
 
 st.divider()
 
