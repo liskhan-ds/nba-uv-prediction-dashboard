@@ -24,10 +24,7 @@ SOCCER_LEAGUES = [
 def render_common_nav(current_league_code: str):
     """
     Renders a common expandable navigation component across league dashboards.
-    - Grouped by sport type: US Sports (4) & Soccer (6).
-    - Mobile/Responsive stacking order strictly respects group ordering.
-    - Active league comes FIRST.
-    - Uses target="_top" so navigation links work seamlessly inside Streamlit Cloud iframes.
+    - Uses native Streamlit st.link_button for 100% reliable click navigation across all devices.
     """
     all_leagues = US_SPORTS + SOCCER_LEAGUES
     current_item = next((item for item in all_leagues if item["code"] == current_league_code), None)
@@ -52,23 +49,7 @@ def render_common_nav(current_league_code: str):
                 if is_current:
                     st.button(f"{label} (Active)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
                 else:
-                    st.markdown(
-                        f'''<a href="{item['url']}" target="_top" style="
-                            display: block;
-                            width: 100%;
-                            padding: 0.45rem 0.2rem;
-                            background-color: #f0f2f6;
-                            color: #31333F;
-                            text-align: center;
-                            text-decoration: none;
-                            border-radius: 8px;
-                            font-size: 13px;
-                            font-weight: 600;
-                            border: 1px solid #d6d8db;
-                            margin-bottom: 0.4rem;
-                        ">{label} ↗</a>''',
-                        unsafe_allow_html=True
-                    )
+                    st.link_button(f"{label} ↗", item["url"], key=f"nav_link_{item['code']}", use_container_width=True)
 
         # Second Sport Group Row
         cols2 = st.columns(len(second_group))
@@ -79,20 +60,4 @@ def render_common_nav(current_league_code: str):
                 if is_current:
                     st.button(f"{label} (Active)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
                 else:
-                    st.markdown(
-                        f'''<a href="{item['url']}" target="_top" style="
-                            display: block;
-                            width: 100%;
-                            padding: 0.45rem 0.2rem;
-                            background-color: #f0f2f6;
-                            color: #31333F;
-                            text-align: center;
-                            text-decoration: none;
-                            border-radius: 8px;
-                            font-size: 13px;
-                            font-weight: 600;
-                            border: 1px solid #d6d8db;
-                            margin-bottom: 0.4rem;
-                        ">{label} ↗</a>''',
-                        unsafe_allow_html=True
-                    )
+                    st.link_button(f"{label} ↗", item["url"], key=f"nav_link_{item['code']}", use_container_width=True)
