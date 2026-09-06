@@ -2,19 +2,20 @@ import streamlit as st
 
 # -----------------------------------------------------------------------------
 # Master League Configuration Registry (Grouped by Sport Category)
+# Short official domain URLs (without -dashboard)
 # US Sports (4): NBA, MLB, NHL, NFL
 # Soccer Leagues (6): EPL, La Liga (LLG), Bundesliga (BDL), Serie A (SRA), Ligue 1 (LG1), MLS
 # -----------------------------------------------------------------------------
 DEFAULT_LEAGUES_ORDER = [
-    {"code": "NBA", "name": "NBA", "icon": "🏀", "url": "https://nba-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "MLB", "name": "MLB", "icon": "⚾", "url": "https://mlb-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "NHL", "name": "NHL", "icon": "🏒", "url": "https://nhl-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "NFL", "name": "NFL", "icon": "🏈", "url": "https://nfl-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "EPL", "name": "EPL", "icon": "⚽", "url": "https://epl-uv-prediction-dashboard.streamlit.app/"},
+    {"code": "NBA", "name": "NBA", "icon": "🏀", "url": "https://nba-uv-prediction.streamlit.app/"},
+    {"code": "MLB", "name": "MLB", "icon": "⚾", "url": "https://mlb-uv-prediction.streamlit.app/"},
+    {"code": "NHL", "name": "NHL", "icon": "🏒", "url": "https://nhl-uv-prediction.streamlit.app/"},
+    {"code": "NFL", "name": "NFL", "icon": "🏈", "url": "https://nfl-uv-prediction.streamlit.app/"},
+    {"code": "EPL", "name": "EPL", "icon": "⚽", "url": "https://epl-uv-prediction.streamlit.app/"},
     {"code": "LLG", "name": "La Liga", "icon": "⚽", "url": "https://llg-uv-prediction.streamlit.app/"},
-    {"code": "BDL", "name": "Bundesliga", "icon": "⚽", "url": "https://bdl-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "SRA", "name": "Serie A", "icon": "⚽", "url": "https://sra-uv-prediction-dashboard.streamlit.app/"},
-    {"code": "LG1", "name": "Ligue 1", "icon": "⚽", "url": "https://lg1-uv-prediction-dashboard.streamlit.app/"},
+    {"code": "BDL", "name": "Bundesliga", "icon": "⚽", "url": "https://bdl-uv-prediction.streamlit.app/"},
+    {"code": "SRA", "name": "Serie A", "icon": "⚽", "url": "https://sra-uv-prediction.streamlit.app/"},
+    {"code": "LG1", "name": "Ligue 1", "icon": "⚽", "url": "https://lg1-uv-prediction.streamlit.app/"},
     {"code": "MLS", "name": "MLS", "icon": "⚽", "url": "https://mls-uv-prediction.streamlit.app/"},
 ]
 
