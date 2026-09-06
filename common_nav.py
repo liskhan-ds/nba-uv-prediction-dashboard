@@ -24,14 +24,14 @@ def render_common_nav(current_league_code: str):
     current_item = next((item for item in LEAGUES_CONFIG if item["code"] == current_league_code), None)
     current_label = f"{current_item['icon']} {current_item['name']}" if current_item else current_league_code
 
-    with st.expander(f"📍 리그 바로가기 / Current: **{current_label}** (클릭하여 이동)", expanded=False):
+    with st.expander(f"📍 League Selector: **{current_label}** (Click to switch leagues)", expanded=False):
         cols = st.columns(len(LEAGUES_CONFIG))
         for idx, item in enumerate(LEAGUES_CONFIG):
             is_current = (item["code"] == current_league_code)
             label = f"{item['icon']} {item['name']}"
             with cols[idx]:
                 if is_current:
-                    st.button(f"{label} (현재)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
+                    st.button(f"{label} (Active)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
                 else:
                     st.markdown(
                         f'''<a href="{item['url']}" target="_self" style="
