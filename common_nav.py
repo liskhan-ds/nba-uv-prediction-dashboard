@@ -27,6 +27,7 @@ def render_common_nav(current_league_code: str):
     - Grouped by sport type: US Sports (4) & Soccer (6).
     - Mobile/Responsive stacking order strictly respects group ordering.
     - Active league comes FIRST.
+    - Uses target="_top" so navigation links work seamlessly inside Streamlit Cloud iframes.
     """
     all_leagues = US_SPORTS + SOCCER_LEAGUES
     current_item = next((item for item in all_leagues if item["code"] == current_league_code), None)
@@ -52,7 +53,7 @@ def render_common_nav(current_league_code: str):
                     st.button(f"{label} (Active)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
                 else:
                     st.markdown(
-                        f'''<a href="{item['url']}" target="_self" style="
+                        f'''<a href="{item['url']}" target="_top" style="
                             display: block;
                             width: 100%;
                             padding: 0.45rem 0.2rem;
@@ -79,7 +80,7 @@ def render_common_nav(current_league_code: str):
                     st.button(f"{label} (Active)", disabled=True, key=f"nav_btn_{item['code']}", use_container_width=True)
                 else:
                     st.markdown(
-                        f'''<a href="{item['url']}" target="_self" style="
+                        f'''<a href="{item['url']}" target="_top" style="
                             display: block;
                             width: 100%;
                             padding: 0.45rem 0.2rem;
