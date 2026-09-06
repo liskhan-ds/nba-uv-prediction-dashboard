@@ -5,7 +5,7 @@ import streamlit as st
 # Add or update any new league here to update across all dashboards.
 # -----------------------------------------------------------------------------
 LEAGUES_CONFIG = [
-    {"code": "NBA", "name": "NBA", "icon": "🏀", "url": "https://nba-uv-prediction-dashboard.streamlit.app/"},
+    {"code": "NBA", "name": "NBA", "icon": "🏀", "url": "https://nba-uv-prediction.streamlit.app/"},
     {"code": "MLB", "name": "MLB", "icon": "⚾", "url": "https://mlb-uv-prediction-dashboard.streamlit.app/"},
     {"code": "EPL", "name": "EPL", "icon": "⚽", "url": "https://epl-uv-prediction-dashboard.streamlit.app/"},
     {"code": "LLG", "name": "La Liga", "icon": "⚽", "url": "https://llg-uv-prediction.streamlit.app/"},
