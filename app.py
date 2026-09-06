@@ -4,6 +4,7 @@ import pandas as pd
 import altair as alt
 import os
 from datetime import datetime
+from common_nav import render_common_nav
 
 # -----------------------------------------------------------------------------
 # 1. Page Configuration & Data Loading
@@ -27,23 +28,8 @@ def load_data():
 
 df = load_data()
 
-# Top Navigation Tabs (7 Sports)
-# Top Navigation Bar (7 Leagues)
-nav_cols = st.columns(7)
-with nav_cols[0]:
-    st.button("🏀 NBA (Current)", disabled=True, use_container_width=True)
-with nav_cols[1]:
-    st.link_button("⚾ MLB ↗", "https://mlb-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_cols[2]:
-    st.link_button("⚽ EPL ↗", "https://epl-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_cols[3]:
-    st.link_button("⚽ La Liga ↗", "https://llg-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_cols[4]:
-    st.link_button("🏒 NHL ↗", "https://nhl-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_cols[5]:
-    st.link_button("🏈 NFL ↗", "https://nfl-uv-prediction.streamlit.app/", use_container_width=True)
-with nav_cols[6]:
-    st.link_button("⚽ MLS ↗", "https://mls-uv-prediction.streamlit.app/", use_container_width=True)
+# Render Common Expandable Navigation
+render_common_nav("NBA")
 
 st.divider()
 
