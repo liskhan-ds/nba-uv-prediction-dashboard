@@ -10,10 +10,12 @@ from datetime import datetime
 # -----------------------------------------------------------------------------
 st.set_page_config(page_title="NBA AI Prediction", page_icon="🏀", layout="wide")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)
-
 from common_nav import render_common_nav
 render_common_nav("NBA")
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)
+
 
 )
 DB_PATH = os.path.join(BASE_DIR, "nba_data.db")
