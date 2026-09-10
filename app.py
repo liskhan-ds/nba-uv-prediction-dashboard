@@ -14,6 +14,9 @@ from common_nav import render_common_nav
 render_common_nav("NBA")
 
 
+
+
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)
 
 
