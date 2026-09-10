@@ -4,7 +4,6 @@ import pandas as pd
 import altair as alt
 import os
 from datetime import datetime
-from common_nav import render_common_nav
 
 # -----------------------------------------------------------------------------
 # 1. Page Configuration & Data Loading
@@ -29,7 +28,6 @@ def load_data():
 df = load_data()
 
 # Render Common Expandable Navigation
-render_common_nav("NBA")
 
 st.divider()
 
